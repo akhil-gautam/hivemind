@@ -125,7 +125,7 @@ pub fn run_node(node: Arc<Node>) -> std::io::Result<()> {
     for i in 0..node.cfg.concurrency {
         let n = node.clone();
         std::thread::Builder::new()
-            .name(format!("hive-worker-{}", i))
+            .name(format!("hivemind-worker-{}", i))
             .stack_size(256 * 1024)
             .spawn(move || worker_loop(n))?;
     }
@@ -135,7 +135,7 @@ pub fn run_node(node: Arc<Node>) -> std::io::Result<()> {
     {
         let n = node.clone();
         std::thread::Builder::new()
-            .name("hive-peers".into())
+            .name("hivemind-peers".into())
             .stack_size(128 * 1024)
             .spawn(move || {
                 let mut last = String::new();
@@ -167,12 +167,12 @@ pub fn run_node(node: Arc<Node>) -> std::io::Result<()> {
     );
     log(
         "info",
-        &format!("open this page to use Hive: {}/", node.base_url()),
+        &format!("open this page to use Hivemind: {}/", node.base_url()),
     );
     if node.cfg.agent_cmd.is_none() {
         log(
             "warn",
-            "no agent configured yet: pick one in the web page, or run `hive config set agent_cmd \"<cmd> {prompt}\"`",
+            "no agent configured yet: pick one in the web page, or run `hivemind config set agent_cmd \"<cmd> {prompt}\"`",
         );
     }
     server.run();

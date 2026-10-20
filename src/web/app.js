@@ -1,4 +1,4 @@
-/* Hive web UI — plain JS, no build step, no dependencies. */
+/* Hivemind web UI — plain JS, no build step, no dependencies. */
 (function () {
   "use strict";
 
@@ -86,7 +86,7 @@
     box.textContent = "";
 
     if (!mesh.nodes.length) {
-      $("meshHint").textContent = "No other Macs found yet. Make sure Hive is running on them.";
+      $("meshHint").textContent = "No other Macs found yet. Make sure Hivemind is running on them.";
       return;
     }
     $("meshHint").textContent = "Pick the Mac that should do the work.";

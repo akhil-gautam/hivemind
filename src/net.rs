@@ -210,7 +210,7 @@ impl Discovery {
         let sock = socket.try_clone()?;
         let announce2 = announce.clone();
         std::thread::Builder::new()
-            .name("hive-discovery".into())
+            .name("hivemind-discovery".into())
             .stack_size(256 * 1024)
             .spawn(move || {
                 let mut last_announce = Instant::now() - ANNOUNCE_INTERVAL;
@@ -288,7 +288,7 @@ impl Discovery {
 
         let peers3 = peers.clone();
         std::thread::Builder::new()
-            .name("hive-discovery-prune".into())
+            .name("hivemind-discovery-prune".into())
             .stack_size(128 * 1024)
             .spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(5));

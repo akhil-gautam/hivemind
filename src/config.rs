@@ -120,17 +120,17 @@ impl Config {
 
 /// Directory holding config.json, tasks.jsonl and peers.json.
 pub fn app_dir() -> PathBuf {
-    if let Ok(p) = std::env::var("HIVE_DIR") {
+    if let Ok(p) = std::env::var("HIVEMIND_DIR") {
         return PathBuf::from(p);
     }
     if cfg!(target_os = "macos") {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(home).join("Library/Application Support/hive")
+        PathBuf::from(home).join("Library/Application Support/hivemind")
     } else if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
-        PathBuf::from(x).join("hive")
+        PathBuf::from(x).join("hivemind")
     } else {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(home).join(".config/hive")
+        PathBuf::from(home).join(".config/hivemind")
     }
 }
 
@@ -155,13 +155,13 @@ pub fn load_from(path: &Path) -> Config {
         Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
             Ok(v) => Config::from_json(&v),
             Err(e) => {
-                eprintln!("hive: bad config {}: {}", path.display(), e);
+                eprintln!("hivemind: bad config {}: {}", path.display(), e);
                 Config::default()
             }
         },
         Err(_) => Config::default(),
     };
-    if let Ok(name) = std::env::var("HIVE_NODE_NAME") {
+    if let Ok(name) = std::env::var("HIVEMIND_NODE_NAME") {
         cfg.node_name = name;
     }
     cfg

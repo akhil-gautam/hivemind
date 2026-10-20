@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-pub const LABEL: &str = "io.hive.agent";
+pub const LABEL: &str = "io.hivemind.agent";
 
 pub fn launchd_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());

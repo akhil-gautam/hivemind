@@ -92,7 +92,7 @@ pub fn log(level: &str, msg: &str) {
 }
 
 fn level_enabled(level: &str) -> bool {
-    let cur = std::env::var("HIVE_LOG").unwrap_or_else(|_| "info".to_string());
+    let cur = std::env::var("HIVEMIND_LOG").unwrap_or_else(|_| "info".to_string());
     rank(level) <= rank(&cur)
 }
 

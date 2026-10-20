@@ -1,4 +1,4 @@
-//! hive — run CLI agents on several Macs over the home WiFi from one terminal.
+//! hivemind — run CLI agents on several Macs over the home WiFi from one terminal.
 //!
 //! Memory discipline: one static binary, std-only networking, no async
 //! runtime. A node daemon idles at a few megabytes of RSS.
@@ -111,7 +111,7 @@ fn main() {
         "app" => cmd_app(&args),
         "probe" => cmd_probe(&args),
         "version" => {
-            println!("hive {}", node::VERSION);
+            println!("hivemind {}", node::VERSION);
             0
         }
         _ => {
@@ -128,27 +128,27 @@ fn main() {
 
 fn usage() {
     eprintln!(
-        r#"hive {ver} — run CLI agents across your Macs on one WiFi
+        r#"hivemind {ver} — run CLI agents across your Macs on one WiFi
 
 USAGE
-  hive serve [--port N] [--name NAME] [--agent-cmd "cmd {{prompt}}"] [--concurrency N]
+  hivemind serve [--port N] [--name NAME] [--agent-cmd "cmd {{prompt}}"] [--concurrency N]
              [--timeout SECS] [--no-discovery] [--advertise IP]
-  hive ls [--host HOST:PORT]                 list nodes on the LAN
-  hive run PROMPT [--node NAME] [--host HOST:PORT] [--label L] [--cwd DIR] [--json]
-  hive get TASK_ID [--host HOST:PORT]        show one task
-  hive cancel TASK_ID [--host HOST:PORT]     cancel a running task
-  hive config show|path|init|set KEY VALUE   manage the node configuration
-  hive open                                   start the node if needed and open the page
-  hive app                                    create a double-clickable Hive.app
-  hive probe [--seconds N]                    check which nodes answer on this network
-  hive install [--dry-run]                   install the launchd service
-  hive uninstall                              remove the launchd service
-  hive version
+  hivemind ls [--host HOST:PORT]                 list nodes on the LAN
+  hivemind run PROMPT [--node NAME] [--host HOST:PORT] [--label L] [--cwd DIR] [--json]
+  hivemind get TASK_ID [--host HOST:PORT]        show one task
+  hivemind cancel TASK_ID [--host HOST:PORT]     cancel a running task
+  hivemind config show|path|init|set KEY VALUE   manage the node configuration
+  hivemind open                                   start the node if needed and open the page
+  hivemind app                                    create a double-clickable Hivemind.app
+  hivemind probe [--seconds N]                    check which nodes answer on this network
+  hivemind install [--dry-run]                   install the launchd service
+  hivemind uninstall                              remove the launchd service
+  hivemind version
 
 ENV
-  HIVE_DIR      override the config/state directory
-  HIVE_LOG      error|warn|info|debug (default info)
-  HIVE_NODE_NAME override the node name
+  HIVEMIND_DIR      override the config/state directory
+  HIVEMIND_LOG      error|warn|info|debug (default info)
+  HIVEMIND_NODE_NAME override the node name
 "#,
         ver = node::VERSION
     );
@@ -177,7 +177,7 @@ fn peers_path_for(args: &Args) -> PathBuf {
 fn cmd_serve(args: &Args) -> i32 {
     if let Some(dir) = args.flag("dir") {
         // Make every path helper (tasks, peers) agree with --dir.
-        std::env::set_var("HIVE_DIR", dir);
+        std::env::set_var("HIVEMIND_DIR", dir);
     }
     let mut cfg: Config = if let Some(c) = args.flag("config") {
         config::load_from(&PathBuf::from(c))
@@ -245,7 +245,7 @@ fn cmd_serve(args: &Args) -> i32 {
         ) {
             Ok(d) => Some(d),
             Err(e) => {
-                eprintln!("hive: discovery unavailable: {}", e);
+                eprintln!("hivemind: discovery unavailable: {}", e);
                 None
             }
         }
@@ -257,7 +257,7 @@ fn cmd_serve(args: &Args) -> i32 {
     match node::run_node(node) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -306,7 +306,7 @@ fn cmd_ls(args: &Args) -> i32 {
         });
     }
     if peers.is_empty() {
-        eprintln!("hive: no nodes known yet — start one with `hive serve` on a Mac");
+        eprintln!("hivemind: no nodes known yet — start one with `hivemind serve` on a Mac");
         return 1;
     }
     println!("{:<18} {:<24} {:<12} {:<8} {}", "NAME", "ADDRESS", "AGENT", "STATE", "VERSION");
@@ -363,7 +363,7 @@ fn cmd_ls(args: &Args) -> i32 {
 fn cmd_run(args: &Args) -> i32 {
     let prompt = args.positional.join(" ");
     if prompt.trim().is_empty() {
-        eprintln!("hive: usage: hive run \"your prompt\" [--node NAME]");
+        eprintln!("hivemind: usage: hivemind run \"your prompt\" [--node NAME]");
         return 2;
     }
     let timeout = Duration::from_secs(args.num("timeout").unwrap_or(900));
@@ -374,7 +374,7 @@ fn cmd_run(args: &Args) -> i32 {
             match client::probe(&addr, Duration::from_secs(2)) {
                 Some(info) => (addr, info),
                 None => {
-                    eprintln!("hive: node {} is not responding", addr);
+                    eprintln!("hivemind: node {} is not responding", addr);
                     return 1;
                 }
             }
@@ -389,8 +389,8 @@ fn cmd_run(args: &Args) -> i32 {
                     match client::resolve(&peers, args.flag("node"), Duration::from_secs(2)) {
                         Ok(v) => v,
                         Err(e) => {
-                            eprintln!("hive: {}", e);
-                            eprintln!("hive: start a node with `hive serve` on the other Mac");
+                            eprintln!("hivemind: {}", e);
+                            eprintln!("hivemind: start a node with `hivemind serve` on the other Mac");
                             return 1;
                         }
                     }
@@ -413,7 +413,7 @@ fn cmd_run(args: &Args) -> i32 {
     ) {
         Ok(id) => id,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             return 1;
         }
     };
@@ -431,13 +431,13 @@ fn cmd_run(args: &Args) -> i32 {
                 return exit_code_for(&v);
             }
             Err(e) => {
-                eprintln!("hive: {}", e);
+                eprintln!("hivemind: {}", e);
                 return 1;
             }
         }
     }
 
-    eprintln!("hive: task {} on {} ({})", id, node_name, addr);
+    eprintln!("hivemind: task {} on {} ({})", id, node_name, addr);
     let mut out = std::io::stdout();
     let result = client::follow(
         &addr,
@@ -462,22 +462,22 @@ fn cmd_run(args: &Args) -> i32 {
             } else {
                 0.0
             };
-            eprintln!("hive: {} in {:.1}s", state, secs);
+            eprintln!("hivemind: {} in {:.1}s", state, secs);
             if let Some(err) = v.get("error").and_then(|x| x.as_str()) {
                 if !err.is_empty() {
-                    eprintln!("hive: {}", err);
+                    eprintln!("hivemind: {}", err);
                 }
             }
             if state == "running" || state == "queued" {
                 eprintln!(
-                    "hive: client deadline reached; the node keeps working on it (hive get {})",
+                    "hivemind: client deadline reached; the node keeps working on it (hivemind get {})",
                     id
                 );
             }
             exit_code_for(&v)
         }
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -509,13 +509,13 @@ fn resolve_node(args: &Args) -> Result<String, String> {
 
 fn cmd_get(args: &Args) -> i32 {
     let Some(id) = args.positional.first() else {
-        eprintln!("hive: usage: hive get TASK_ID");
+        eprintln!("hivemind: usage: hivemind get TASK_ID");
         return 2;
     };
     let addr = match resolve_node(args) {
         Ok(addr) => addr,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             return 1;
         }
     };
@@ -525,7 +525,7 @@ fn cmd_get(args: &Args) -> i32 {
             0
         }
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -533,13 +533,13 @@ fn cmd_get(args: &Args) -> i32 {
 
 fn cmd_cancel(args: &Args) -> i32 {
     let Some(id) = args.positional.first() else {
-        eprintln!("hive: usage: hive cancel TASK_ID");
+        eprintln!("hivemind: usage: hivemind cancel TASK_ID");
         return 2;
     };
     let addr = match resolve_node(args) {
         Ok(addr) => addr,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             return 1;
         }
     };
@@ -549,7 +549,7 @@ fn cmd_cancel(args: &Args) -> i32 {
             0
         }
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -568,20 +568,20 @@ fn cmd_config(args: &Args) -> i32 {
         "init" => {
             let cfg = Config::default();
             if let Err(e) = config::save(&cfg, &path) {
-                eprintln!("hive: {}", e);
+                eprintln!("hivemind: {}", e);
                 return 1;
             }
             println!("wrote {}", path.display());
-            println!("next: hive config set agent_cmd \"claude -p {{prompt}}\"");
+            println!("next: hivemind config set agent_cmd \"claude -p {{prompt}}\"");
             0
         }
         "set" => {
             let Some(key) = args.flag("key").or_else(|| args.positional.get(1).map(|s| s.as_str())) else {
-                eprintln!("hive: usage: hive config set KEY VALUE");
+                eprintln!("hivemind: usage: hivemind config set KEY VALUE");
                 return 2;
             };
             let Some(value) = args.flag("value").or_else(|| args.positional.get(2).map(|s| s.as_str())) else {
-                eprintln!("hive: usage: hive config set KEY VALUE");
+                eprintln!("hivemind: usage: hivemind config set KEY VALUE");
                 return 2;
             };
             let mut cfg = config::load_from(&path);
@@ -611,12 +611,12 @@ fn cmd_config(args: &Args) -> i32 {
                 "advertise_ip" => cfg.advertise_ip = Some(value.to_string()),
                 "work_dir" => cfg.work_dir = Some(value.to_string()),
                 other => {
-                    eprintln!("hive: unknown config key '{}'", other);
+                    eprintln!("hivemind: unknown config key '{}'", other);
                     return 2;
                 }
             }
             if let Err(e) = config::save(&cfg, &path) {
-                eprintln!("hive: {}", e);
+                eprintln!("hivemind: {}", e);
                 return 1;
             }
             println!("{} = {}", key, value);
@@ -633,9 +633,9 @@ fn cmd_config(args: &Args) -> i32 {
 // ----------------------------------------------------------------- install ---
 
 fn cmd_install(args: &Args) -> i32 {
-    let binary = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("hive"));
+    let binary = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("hivemind"));
     let cfg_path = config_path_for(args);
-    let log_path = app_dir_for(args).join("hive.log");
+    let log_path = app_dir_for(args).join("hivemind.log");
     match plist::install(
         &binary.to_string_lossy(),
         &cfg_path.to_string_lossy(),
@@ -663,7 +663,7 @@ fn cmd_install(args: &Args) -> i32 {
             0
         }
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -679,7 +679,7 @@ fn cmd_uninstall(args: &Args) -> i32 {
     match plist::uninstall(args.has("dry-run")) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             1
         }
     }
@@ -714,7 +714,7 @@ fn start_server_in_background() -> std::io::Result<()> {
     let log = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(dir.join("hive.log"))?;
+        .open(dir.join("hivemind.log"))?;
     let err = log.try_clone()?;
     std::process::Command::new(bin)
         .arg("serve")
@@ -739,9 +739,9 @@ fn open_in_browser(url: &str) -> std::io::Result<()> {
 fn cmd_open(args: &Args) -> i32 {
     let cfg = config::load_from(&config_path_for(args));
     if !node_running(cfg.port) {
-        eprintln!("hive: starting the node…");
+        eprintln!("hivemind: starting the node…");
         if let Err(e) = start_server_in_background() {
-            eprintln!("hive: could not start the node: {}", e);
+            eprintln!("hivemind: could not start the node: {}", e);
             return 1;
         }
         for _ in 0..60 {
@@ -751,13 +751,13 @@ fn cmd_open(args: &Args) -> i32 {
             std::thread::sleep(Duration::from_millis(100));
         }
         if !node_running(cfg.port) {
-            eprintln!("hive: the node did not start; see the log in {}", config::app_dir().display());
+            eprintln!("hivemind: the node did not start; see the log in {}", config::app_dir().display());
             return 1;
         }
     }
     let url = local_node_url(&cfg);
     if let Err(e) = open_in_browser(&url) {
-        eprintln!("hive: could not open a browser: {}", e);
+        eprintln!("hivemind: could not open a browser: {}", e);
         println!("{}", url);
         return 1;
     }
@@ -792,15 +792,15 @@ fn cmd_app(_args: &Args) -> i32 {
     let bin = match std::env::current_exe() {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("hive: {}", e);
+            eprintln!("hivemind: {}", e);
             return 1;
         }
     };
     let home = util::home_dir();
-    let app = PathBuf::from(&home).join("Applications/Hive.app");
+    let app = PathBuf::from(&home).join("Applications/Hivemind.app");
     let macos = app.join("Contents/MacOS");
     if let Err(e) = std::fs::create_dir_all(&macos) {
-        eprintln!("hive: {}", e);
+        eprintln!("hivemind: {}", e);
         return 1;
     }
     let plist = format!(
@@ -808,13 +808,13 @@ fn cmd_app(_args: &Args) -> i32 {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Hive</string>
-    <key>CFBundleDisplayName</key><string>Hive</string>
-    <key>CFBundleIdentifier</key><string>io.hive.app</string>
+    <key>CFBundleName</key><string>Hivemind</string>
+    <key>CFBundleDisplayName</key><string>Hivemind</string>
+    <key>CFBundleIdentifier</key><string>io.hivemind.app</string>
     <key>CFBundleVersion</key><string>{version}</string>
     <key>CFBundleShortVersionString</key><string>{version}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleExecutable</key><string>Hive</string>
+    <key>CFBundleExecutable</key><string>Hivemind</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
 </dict>
@@ -827,12 +827,12 @@ fn cmd_app(_args: &Args) -> i32 {
         bin.to_string_lossy()
     );
     if let Err(e) = std::fs::write(app.join("Contents/Info.plist"), plist) {
-        eprintln!("hive: {}", e);
+        eprintln!("hivemind: {}", e);
         return 1;
     }
-    let script = macos.join("Hive");
+    let script = macos.join("Hivemind");
     if let Err(e) = std::fs::write(&script, launcher) {
-        eprintln!("hive: {}", e);
+        eprintln!("hivemind: {}", e);
         return 1;
     }
     #[cfg(unix)]
@@ -841,6 +841,6 @@ fn cmd_app(_args: &Args) -> i32 {
         let _ = std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755));
     }
     println!("created {}", app.display());
-    println!("Double-click it in Finder to open Hive.");
+    println!("Double-click it in Finder to open Hivemind.");
     0
 }

@@ -3,8 +3,8 @@
 version = 3
 
 [[package]]
-name = "hive"
-version = "0.1.0"
+name = "hivemind"
+version = "0.2.0"
 dependencies = [
  "serde_json",
  "socket2",

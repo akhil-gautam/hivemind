@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-const BIN: &str = env!("CARGO_BIN_EXE_hive");
+const BIN: &str = env!("CARGO_BIN_EXE_hivemind");
 
 struct Node {
     child: Child,
@@ -29,11 +29,11 @@ impl Node {
                 "--discovery-port",
                 &discovery_port.to_string(),
             ])
-            .env("HIVE_DIR", dir)
+            .env("HIVEMIND_DIR", dir)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .expect("failed to start hive serve");
+            .expect("failed to start hivemind serve");
         let node = Node {
             child,
             port,
@@ -66,7 +66,7 @@ impl Drop for Node {
 }
 
 fn temp_dir(name: &str) -> PathBuf {
-    let base = std::env::temp_dir().join(format!("hive-test-{}-{}", name, std::process::id()));
+    let base = std::env::temp_dir().join(format!("hivemind-test-{}-{}", name, std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&base).unwrap();
     base
@@ -130,9 +130,9 @@ fn http_post(port: u16, path: &str, body: &str) -> Result<(u16, String), String>
 fn run_cli(args: &[&str], dir: &Path) -> (String, String, bool) {
     let out = Command::new(BIN)
         .args(args)
-        .env("HIVE_DIR", dir)
+        .env("HIVEMIND_DIR", dir)
         .output()
-        .expect("failed to run hive");
+        .expect("failed to run hivemind");
     (
         String::from_utf8_lossy(&out.stdout).to_string(),
         String::from_utf8_lossy(&out.stderr).to_string(),
@@ -176,12 +176,12 @@ fn task_round_trip_returns_agent_output() {
     let dir = temp_dir("roundtrip");
     let node = Node::start(&dir, 18801, 14781, "node-a", "cat");
     let (stdout, stderr, ok) = run_cli(
-        &["run", "hello hive", "--host", &node.addr(), "--json"],
+        &["run", "hello hivemind", "--host", &node.addr(), "--json"],
         &dir,
     );
     assert!(ok, "run failed: {}{}", stdout, stderr);
     assert_eq!(json_field(&stdout, "state"), Some("done"));
-    assert!(stdout.contains("hello hive"), "output missing: {}", stdout);
+    assert!(stdout.contains("hello hivemind"), "output missing: {}", stdout);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -289,9 +289,9 @@ fn nodes_discover_each_other_on_the_lan() {
     // before asserting on discovery.
     let probe = Command::new(BIN)
         .args(["probe", "--seconds", "3"])
-        .env("HIVE_DIR", &dir_a)
+        .env("HIVEMIND_DIR", &dir_a)
         .output()
-        .expect("failed to run hive probe");
+        .expect("failed to run hivemind probe");
     if !probe.status.success() {
         eprintln!(
             "skipped: this machine does not deliver beacons between local processes ({})",
@@ -329,7 +329,7 @@ fn the_web_page_and_its_assets_are_served() {
 
     let (status, body) = http_get(node.port, "/").unwrap();
     assert_eq!(status, 200);
-    assert!(body.contains("Hive"), "page does not look like the Hive UI");
+    assert!(body.contains("Hivemind"), "page does not look like the Hivemind UI");
     assert!(body.contains("What should it do?"), "missing the main prompt field");
 
     let (status, body) = http_get(node.port, "/app.css").unwrap();
@@ -428,5 +428,10 @@ fn task_history_survives_a_restart() {
     let (status, body) = http_get(node.port, &format!("/v1/tasks/{}", id)).unwrap();
     assert_eq!(status, 200);
     assert_eq!(json_field(&body, "state"), Some("done"));
+
+    // A task is logged twice (created, then finished) but must show up once.
+    let (_, body) = http_get(node.port, "/v1/tasks").unwrap();
+    let count = body.matches(&format!("\"id\":\"{}\"", id)).count();
+    assert_eq!(count, 1, "task listed {} times: {}", count, body);
     let _ = std::fs::remove_dir_all(&dir);
 }

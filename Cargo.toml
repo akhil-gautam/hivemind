@@ -1,9 +1,9 @@
 [package]
-name = "hive"
-version = "0.1.0"
+name = "hivemind"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.75"
-description = "Tiny LAN agent mesh: run CLI agents on several Macs over home WiFi from one terminal"
+description = "Run CLI agents on several Macs over the home WiFi and drive them from one browser page"
 license = "MIT"
 
 [dependencies]

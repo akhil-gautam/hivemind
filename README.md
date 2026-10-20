@@ -1,17 +1,17 @@
-# hive
+# Hivemind
 
 Run CLI agents (Claude Code, OpenCode, Codex, Gemini CLI, ollama, anything with
 a command line) on several Macs joined by the home WiFi, and drive them from
 one page in a browser.
 
-Each Mac runs a tiny `hive` node. Nodes find each other on the LAN, accept
+Each Mac runs a tiny `hivemind` node. Nodes find each other on the LAN, accept
 prompts over HTTP, run the local agent as a child process, and stream the
 output back. Any device on the WiFi can open the page and use them.
 
 ```
   laptop                     studio                      mini
 ┌──────────────┐           ┌──────────────┐           ┌──────────────┐
-│ browser page │──UDP mcast│ hive node    │           │ hive node    │
+│ browser page │──UDP mcast│ hivemind node│           │ hivemind node│
 │ "fix tests"  │──HTTP/SSE─▶  claude -p   │           │  ollama run  │
 └──────────────┘           └──────────────┘           └──────────────┘
 ```
@@ -32,7 +32,7 @@ terminal.
 
 ## Why it is small
 
-| | hive |
+| | hivemind |
 |---|---|
 | idle RSS per node | **1.8 MiB** (2.1 MiB with 10 tasks in flight) |
 | binary | 576 KiB, links only `libSystem` |
@@ -54,7 +54,7 @@ Memory discipline that keeps it there:
 Measured on macOS 26 (arm64), release build:
 
 ```
-$ ps -o rss= -p $(pgrep -f "hive serve")
+$ ps -o rss= -p $(pgrep -f "hivemind serve")
  1824 KiB     # idle
  2128 KiB     # after 10 tasks
 ```
@@ -62,34 +62,54 @@ $ ps -o rss= -p $(pgrep -f "hive serve")
 ## Install
 
 ```sh
-git clone <this repo> ~/projects/hive
-cd ~/projects/hive
+git clone <this repo> ~/projects/hivemind
+cd ~/projects/hivemind
 cargo build --release
-cp target/release/hive ~/.local/bin/hive     # ~/.local/bin is already on PATH
+cp target/release/hivemind ~/.local/bin/hivemind     # ~/.local/bin is already on PATH
 ```
 
 Rust 1.75+ is the only build requirement.
 
+### Migrating from `hive` (0.1.x)
+
+The project was renamed; everything user-facing moved with it:
+
+| was | is |
+|---|---|
+| `hive` (binary) | `hivemind` |
+| `~/Library/Application Support/hive/` | `~/Library/Application Support/hivemind/` |
+| `io.hive.agent` (launchd) | `io.hivemind.agent` |
+| `~/Applications/Hive.app` | `~/Applications/Hivemind.app` |
+| `HIVE_DIR`, `HIVE_LOG`, `HIVE_NODE_NAME` | `HIVEMIND_DIR`, `HIVEMIND_LOG`, `HIVEMIND_NODE_NAME` |
+
+```sh
+hive uninstall                                  # stop the old service
+mv ~/Library/Application\ Support/hive \
+   ~/Library/Application\ Support/hivemind     # keep your settings
+cp target/release/hivemind ~/.local/bin/hivemind
+hivemind install
+```
+
 ## One click
 
 ```sh
-hive open     # start the node if needed, then show the page in your browser
-hive app      # create a double-clickable Hive.app in ~/Applications
-hive install  # start the node automatically at login (launchd)
-hive probe    # check which nodes answer on this network
+hivemind open     # start the node if needed, then show the page in your browser
+hivemind app      # create a double-clickable Hivemind.app in ~/Applications
+hivemind install  # start the node automatically at login (launchd)
+hivemind probe    # check which nodes answer on this network
 ```
 
-`hive open` and the app both work whether or not a node is running: they start
+`hivemind open` and the app both work whether or not a node is running: they start
 one in the background if needed and then open `http://<mac-ip>:8787/`.
 
 ## Set up a node (on every Mac that owns an agent)
 
 ```sh
-hive config init                                   # ~/Library/Application Support/hive/config.json
-hive config set node_name studio
-hive config set agent_cmd "claude -p {prompt}"    # the agent on THIS Mac
-hive config set work_dir "~/projects/my-app"      # where the agent works by default
-hive serve
+hivemind config init                                   # ~/Library/Application Support/hivemind/config.json
+hivemind config set node_name studio
+hivemind config set agent_cmd "claude -p {prompt}"    # the agent on THIS Mac
+hivemind config set work_dir "~/projects/my-app"      # where the agent works by default
+hivemind serve
 ```
 
 `agent_cmd` is a shell command template:
@@ -102,11 +122,11 @@ Different Macs can run different agents:
 
 ```sh
 # studio
-hive config set agent_cmd "claude -p {prompt}"
+hivemind config set agent_cmd "claude -p {prompt}"
 # mini
-hive config set agent_cmd "ollama run llama3"
+hivemind config set agent_cmd "ollama run llama3"
 # laptop
-hive config set agent_cmd "codex exec {prompt}"
+hivemind config set agent_cmd "codex exec {prompt}"
 ```
 
 The same choices are available in the page's setup card, so you never have to
@@ -115,19 +135,19 @@ open a terminal.
 ## Use it from any Mac
 
 ```sh
-hive ls                                   # what is on the WiFi right now
+hivemind ls                                   # what is on the WiFi right now
 NAME               ADDRESS                  AGENT        STATE    VERSION
 studio             192.168.0.20:8787        claude       online   0.1.0
 mini               192.168.0.21:8787        ollama       online   0.1.0
 
-hive run "refactor src/main.rs" --node studio
-hive run "summarise this repo" --node mini --label review --cwd ~/projects/app
-hive run "ping" --host 192.168.0.21:8787   # skip discovery, talk to one node
-hive get  t-1712ab-4f2c                   # inspect a task
-hive cancel t-1712ab-4f2c                # stop a running agent (kills its process group)
+hivemind run "refactor src/main.rs" --node studio
+hivemind run "summarise this repo" --node mini --label review --cwd ~/projects/app
+hivemind run "ping" --host 192.168.0.21:8787   # skip discovery, talk to one node
+hivemind get  t-1712ab-4f2c                   # inspect a task
+hivemind cancel t-1712ab-4f2c                # stop a running agent (kills its process group)
 ```
 
-`hive run` streams the agent's stdout live and exits with the agent's status:
+`hivemind run` streams the agent's stdout live and exits with the agent's status:
 `0` when the task finished, `1` when it failed, was cancelled or timed out.
 
 ## How the LAN side works
@@ -146,8 +166,8 @@ hive cancel t-1712ab-4f2c                # stop a running agent (kills its proce
 * **No cloud, no accounts, no inbound ports** — everything stays on the local
   network and dies with the machine.
 
-If discovery is blocked on your network, skip it: `hive run --host IP:PORT`
-always works, and `hive serve --no-discovery` turns the beacon off.
+If discovery is blocked on your network, skip it: `hivemind run --host IP:PORT`
+always works, and `hivemind serve --no-discovery` turns the beacon off.
 
 ## HTTP API
 
@@ -170,12 +190,12 @@ Task states: `queued` → `running` → `done` | `failed` | `cancelled`.
 
 ## Configuration
 
-`~/Library/Application Support/hive/config.json` (override the directory with
-`HIVE_DIR`):
+`~/Library/Application Support/hivemind/config.json` (override the directory with
+`HIVEMIND_DIR`):
 
 | Key | Default | Meaning |
 |---|---|---|
-| `node_name` | computer name | name shown in the page and in `hive ls` |
+| `node_name` | computer name | name shown in the page and in `hivemind ls` |
 | `bind` / `port` | `0.0.0.0` / `8787` | HTTP listener |
 | `agent_cmd` | – | shell template for the local agent, `{prompt}` optional |
 | `work_dir` | home folder | folder agents work in unless a task names another |
@@ -189,13 +209,13 @@ Task states: `queued` → `running` → `done` | `failed` | `cancelled`.
 | `discovery_enabled` | `true` | turn the beacon off entirely |
 | `advertise_ip` | auto | IP announced to peers |
 
-`hive config show` prints the effective configuration, `hive config path` the
+`hivemind config show` prints the effective configuration, `hivemind config path` the
 file location. Changes made in the page are written back to this file.
 
 ## Notes for real WiFi networks
 
 * **Firewall**: macOS asks whether to accept incoming connections for a new
-  binary. Allow `hive` in System Settings → Network → Firewall, otherwise
+  binary. Allow `hivemind` in System Settings → Network → Firewall, otherwise
   peers cannot reach the node (the page still shows the Mac, but tasks fail to
   connect).
 * **Both nodes must be on the same subnet** — multicast and broadcast do not
@@ -203,10 +223,10 @@ file location. Changes made in the page are written back to this file.
   `--host` with a routable address.
 * **Sleeping Macs**: a sleeping node stops answering. The page marks it
   offline; tasks sent to it fail fast instead of hanging.
-* **Nothing shows up?** Run `hive probe` on the Mac that cannot see the others.
+* **Nothing shows up?** Run `hivemind probe` on the Mac that cannot see the others.
   It prints the nodes it hears and exits non-zero if it hears none — that
   separates "the network blocks beacons" from "the other node is down".
-  `hive run --host IP:PORT` works regardless of discovery.
+  `hivemind run --host IP:PORT` works regardless of discovery.
 
 ## Development
 

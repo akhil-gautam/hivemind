@@ -515,7 +515,7 @@ pub fn request_streaming(
 ) -> io::Result<(u16, BodyReader)> {
     let mut stream = connect(addr, timeout)?;
     let mut head = format!(
-        "{} {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: hive/0.1\r\nConnection: close\r\nAccept: */*\r\n",
+        "{} {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: hivemind/0.1\r\nConnection: close\r\nAccept: */*\r\n",
         method, path, addr
     );
     if let Some(b) = body {

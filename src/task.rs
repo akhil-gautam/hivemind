@@ -194,6 +194,10 @@ impl TaskManager {
             lines = lines.split_off(lines.len() - 4096);
         }
         let mut inner = self.inner.lock().unwrap();
+        // A task is written to the log more than once (created, then finished),
+        // so keep only the newest record per id.
+        let mut newest: HashMap<String, Value> = HashMap::new();
+        let mut order: Vec<String> = Vec::new();
         for line in lines {
             let Ok(v) = serde_json::from_str::<Value>(line) else {
                 continue;
@@ -201,34 +205,33 @@ impl TaskManager {
             let Some(id) = v.get("id").and_then(|x| x.as_str()) else {
                 continue;
             };
+            if !newest.contains_key(id) {
+                order.push(id.to_string());
+            }
+            newest.insert(id.to_string(), v);
+        }
+
+        for id in order {
+            let Some(v) = newest.get(&id) else {
+                continue;
+            };
             let state = State::from_str(v.get("state").and_then(|x| x.as_str()).unwrap_or("queued"));
-            if state == State::Running || state == State::Queued {
-                // Interrupted by a restart: mark as failed so the client is not
-                // left waiting on a task that will never finish.
-                let task = Task::new(
-                    id.to_string(),
-                    v.get("node").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-                    v.get("prompt").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-                    v.get("label").and_then(|x| x.as_str()).map(|s| s.to_string()),
-                    v.get("cwd").and_then(|x| x.as_str()).map(|s| s.to_string()),
-                );
-                {
-                    let mut i = task.inner.lock().unwrap();
+            let task = Task::new(
+                id.clone(),
+                v.get("node").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                v.get("prompt").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                v.get("label").and_then(|x| x.as_str()).map(|s| s.to_string()),
+                v.get("cwd").and_then(|x| x.as_str()).map(|s| s.to_string()),
+            );
+            {
+                let mut i = task.inner.lock().unwrap();
+                if state == State::Running || state == State::Queued {
+                    // Interrupted by a restart: mark as failed so the client is
+                    // not left waiting on a task that will never finish.
                     i.state = State::Failed;
                     i.error = Some("node restarted while task was in flight".into());
                     i.ended_ms = Some(now_ms());
-                }
-                inner.tasks.insert(id.to_string(), task);
-            } else {
-                let task = Task::new(
-                    id.to_string(),
-                    v.get("node").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-                    v.get("prompt").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-                    v.get("label").and_then(|x| x.as_str()).map(|s| s.to_string()),
-                    v.get("cwd").and_then(|x| x.as_str()).map(|s| s.to_string()),
-                );
-                {
-                    let mut i = task.inner.lock().unwrap();
+                } else {
                     i.state = state;
                     i.created_ms = v.get("created_ms").and_then(|x| x.as_u64()).unwrap_or(0);
                     i.started_ms = v.get("started_ms").and_then(|x| x.as_u64());
@@ -241,9 +244,9 @@ impl TaskManager {
                         .to_string();
                     i.error = v.get("error").and_then(|x| x.as_str()).map(|s| s.to_string());
                 }
-                inner.tasks.insert(id.to_string(), task);
             }
-            inner.order.push_back(id.to_string());
+            inner.tasks.insert(id.clone(), task);
+            inner.order.push_back(id);
         }
         while inner.order.len() > self.max_history {
             if let Some(old) = inner.order.pop_front() {
