@@ -69,6 +69,28 @@ pub fn expand_home(path: &str) -> String {
     }
 }
 
+/// The PATH an agent command should see.
+///
+/// A node started by launchd gets a minimal PATH (`/usr/bin:/bin:/usr/sbin:/sbin`),
+/// so tools installed by Homebrew or in the user's own bin directory would not
+/// be found. This adds the usual places back.
+pub fn augmented_path() -> String {
+    let home = home_dir();
+    let mut parts: Vec<String> = vec![
+        format!("{}/.local/bin", home),
+        format!("{}/bin", home),
+        "/opt/homebrew/bin".to_string(),
+        "/opt/homebrew/sbin".to_string(),
+        "/usr/local/bin".to_string(),
+    ];
+    if let Ok(path) = std::env::var("PATH") {
+        for dir in path.split(':').filter(|d| !d.is_empty()) {
+            parts.push(dir.to_string());
+        }
+    }
+    parts.join(":")
+}
+
 /// POSIX single-quote escaping so a prompt can never break out of the command.
 pub fn shell_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);

@@ -47,6 +47,9 @@ pub fn run(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     cmd.process_group(0);
+    // The agent must be findable even when the node runs with launchd's
+    // minimal PATH.
+    cmd.env("PATH", crate::util::augmented_path());
     if let Some(dir) = cwd {
         if !dir.is_empty() {
             cmd.current_dir(dir);

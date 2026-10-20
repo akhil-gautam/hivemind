@@ -61,10 +61,7 @@ const CANDIDATES: &[Candidate] = &[
 ];
 
 pub fn on_path(bin: &str) -> bool {
-    let Ok(path) = std::env::var("PATH") else {
-        return false;
-    };
-    for dir in path.split(':') {
+    for dir in crate::util::augmented_path().split(':') {
         if dir.is_empty() {
             continue;
         }
@@ -80,6 +77,7 @@ pub fn on_path(bin: &str) -> bool {
 fn supports(bin: &str, needle: &str) -> bool {
     let mut child = match Command::new(bin)
         .arg("--help")
+        .env("PATH", crate::util::augmented_path())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
