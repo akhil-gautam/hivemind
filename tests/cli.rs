@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// Keep in sync with LICENSE_KEY in src/license.rs.
+const LICENSE_KEY: &str = "HM-4KD9-7QXR-2ZTM";
+
 const BIN: &str = env!("CARGO_BIN_EXE_hivemind");
 
 struct Node {
@@ -16,6 +19,13 @@ struct Node {
 
 impl Node {
     fn start(dir: &Path, port: u16, discovery_port: u16, name: &str, agent: &str) -> Node {
+        let node = Node::start_locked(dir, port, discovery_port, name, agent);
+        node.unlock();
+        node
+    }
+
+    /// A node that has not been given an access key yet.
+    fn start_locked(dir: &Path, port: u16, discovery_port: u16, name: &str, agent: &str) -> Node {
         std::fs::create_dir_all(dir).unwrap();
         let child = Command::new(BIN)
             .args([
@@ -33,13 +43,23 @@ impl Node {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .expect("failed to start hivemind serve");
+            .expect("failed to start hive serve");
         let node = Node {
             child,
             port,
         };
         node.wait_ready();
         node
+    }
+
+    fn unlock(&self) {
+        let (status, body) = http_post(
+            self.port,
+            "/v1/license",
+            &format!("{{\"key\":\"{}\"}}", LICENSE_KEY),
+        )
+        .expect("could not reach the node");
+        assert_eq!(status, 200, "the node refused the access key: {}", body);
     }
 
     fn wait_ready(&self) {
@@ -411,6 +431,47 @@ fn the_api_allows_the_page_to_talk_to_other_macs() {
         "the page cannot talk to other Macs: {}",
         headers
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_node_asks_for_the_access_key_before_doing_any_work() {
+    let dir = temp_dir("license");
+    let node = Node::start_locked(&dir, 18814, 14793, "node-k", "cat");
+
+    // No key yet: the node says so and refuses work.
+    let (status, body) = http_get(node.port, "/v1/info").unwrap();
+    assert_eq!(status, 200);
+    assert!(
+        body.contains("\"licensed\":false"),
+        "a fresh node should start locked: {}",
+        body
+    );
+    let (status, body) = http_post(node.port, "/v1/tasks", "{\"prompt\":\"do it\"}").unwrap();
+    assert_eq!(status, 403, "a locked node must refuse work: {}", body);
+
+    // A wrong key is refused.
+    let (status, _) = http_post(node.port, "/v1/license", "{\"key\":\"HM-WRONG-KEY-000\"}").unwrap();
+    assert_eq!(status, 403, "a wrong key must not unlock the node");
+
+    // The right key unlocks it.
+    let (status, body) = http_post(
+        node.port,
+        "/v1/license",
+        &format!("{{\"key\":\"{}\"}}", LICENSE_KEY),
+    )
+    .unwrap();
+    assert_eq!(status, 200);
+    assert!(
+        body.contains("\"licensed\":true"),
+        "the node should be unlocked: {}",
+        body
+    );
+
+    // And now it does the work.
+    let (status, _) = http_post(node.port, "/v1/tasks", "{\"prompt\":\"do it\"}").unwrap();
+    assert_eq!(status, 201, "an unlocked node must accept work");
+
     let _ = std::fs::remove_dir_all(&dir);
 }
 

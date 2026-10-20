@@ -8,6 +8,7 @@ mod client;
 mod config;
 mod detect;
 mod http;
+mod license;
 mod net;
 mod node;
 mod plist;
@@ -111,6 +112,7 @@ fn main() {
         "open" => cmd_open(&args),
         "app" => cmd_app(&args),
         "probe" => cmd_probe(&args),
+        "license" | "key" => cmd_license(&args),
         "version" => {
             println!("hivemind {}", node::VERSION);
             0
@@ -793,6 +795,46 @@ fn cmd_probe(args: &Args) -> i32 {
     for peer in &found {
         println!("{} {} {}", peer.name, peer.addr(), peer.agent);
     }
+    0
+}
+
+/// Show or set the access key of this node.
+fn cmd_license(args: &Args) -> i32 {
+    let path = config_path_for(args);
+    let mut cfg = config::load_from(&path);
+
+    let Some(key) = args.positional.first() else {
+        return match cfg.license_key.as_deref() {
+            Some(k) if license::valid(k) => {
+                println!("access key: {} (valid)", license::masked(k));
+                0
+            }
+            Some(k) => {
+                println!("access key: {} (not valid)", license::masked(k));
+                1
+            }
+            None => {
+                println!("no access key set — run `hivemind license <key>`");
+                1
+            }
+        };
+    };
+
+    if !license::valid(key) {
+        eprintln!("hivemind: that access key is not valid");
+        return 1;
+    }
+    let key = license::normalise(key);
+    cfg.license_key = Some(key.clone());
+    if let Err(e) = config::save(&cfg, &path) {
+        eprintln!("hivemind: {}", e);
+        return 1;
+    }
+    // Tell the running node right away, if there is one.
+    let addr = format!("127.0.0.1:{}", cfg.port);
+    let body = serde_json::json!({ "key": key }).to_string();
+    let _ = client::post_license(&addr, &body);
+    println!("access key saved for this node");
     0
 }
 

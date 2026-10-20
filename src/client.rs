@@ -85,6 +85,27 @@ pub fn submit(
         .ok_or_else(|| "node did not return a task id".to_string())
 }
 
+/// Hand an access key to a node.
+pub fn post_license(addr: &str, body: &str) -> Result<Value, String> {
+    let resp = http::request(
+        "POST",
+        addr,
+        "/v1/license",
+        Some(body.as_bytes()),
+        Duration::from_secs(10),
+    )
+    .map_err(|e| format!("cannot reach {}: {}", addr, e))?;
+    let v = resp.json().unwrap_or(Value::Null);
+    if resp.status != 200 {
+        return Err(v
+            .get("error")
+            .and_then(|e| e.as_str())
+            .unwrap_or("the node refused the key")
+            .to_string());
+    }
+    Ok(v)
+}
+
 pub fn get_task(addr: &str, id: &str, timeout: Duration) -> Result<Value, String> {
     let resp = http::request("GET", addr, &format!("/v1/tasks/{}", id), None, timeout)
         .map_err(|e| format!("cannot reach {}: {}", addr, e))?;

@@ -74,11 +74,25 @@
       }
       renderSelf();
       renderMesh();
+      renderLicense();
       renderSetup();
       return renderRecent();
     }).catch(function (e) {
       $("meshHint").textContent = "Cannot reach this Mac: " + e.message;
     });
+  }
+
+  /// Show the access key prompt until the node has been unlocked.
+  function renderLicense() {
+    var s = mesh.self;
+    if (!s) return;
+    var licensed = s.licensed === true;
+    $("licenseCard").hidden = licensed;
+    $("run").disabled = !licensed;
+    if (!licensed) {
+      $("runHint").textContent = "Enter the access key above to start working.";
+      $("runHint").className = "hint";
+    }
   }
 
   function renderMesh() {
@@ -137,6 +151,10 @@
   function renderSetup() {
     var s = mesh.self;
     if (!s) return;
+    if (s.licensed !== true) {
+      $("setupCard").hidden = true;
+      return;
+    }
     if (s.agent) {
       $("setupCard").hidden = true;
       return;
@@ -350,10 +368,34 @@
     });
   }
 
+  /// Send the access key to this node.
+  function unlock() {
+    var key = $("licenseKey").value.trim();
+    var hint = $("licenseHint");
+    if (!key) {
+      hint.textContent = "Enter the access key first.";
+      hint.className = "hint bad";
+      return;
+    }
+    postJSON("/v1/license", { key: key }).then(function () {
+      $("licenseKey").value = "";
+      hint.textContent = "";
+      hint.className = "hint";
+      return refresh();
+    }).catch(function (e) {
+      hint.textContent = e.message;
+      hint.className = "hint bad";
+    });
+  }
+
   $("run").addEventListener("click", run);
   $("cancel").addEventListener("click", cancel);
   $("saveSetup").addEventListener("click", saveSetup);
   $("useCustom").addEventListener("click", useCustom);
+  $("unlock").addEventListener("click", unlock);
+  $("licenseKey").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") unlock();
+  });
   $("prompt").addEventListener("keydown", function (e) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run();
   });

@@ -26,6 +26,8 @@ pub struct Config {
     pub advertise_ip: Option<String>,
     /// Folder agents run in when a task does not name one.
     pub work_dir: Option<String>,
+    /// Access key entered for this node.
+    pub license_key: Option<String>,
 }
 
 impl Default for Config {
@@ -45,6 +47,7 @@ impl Default for Config {
             discovery_enabled: true,
             advertise_ip: None,
             work_dir: None,
+            license_key: None,
         }
     }
 }
@@ -95,6 +98,9 @@ impl Config {
         if let Some(s) = v.get("work_dir").and_then(|x| x.as_str()) {
             c.work_dir = Some(s.to_string());
         }
+        if let Some(s) = v.get("license_key").and_then(|x| x.as_str()) {
+            c.license_key = Some(s.to_string());
+        }
         c
     }
 
@@ -114,6 +120,7 @@ impl Config {
             "discovery_enabled": self.discovery_enabled,
             "advertise_ip": self.advertise_ip,
             "work_dir": self.work_dir,
+            "license_key": self.license_key,
         })
     }
 }

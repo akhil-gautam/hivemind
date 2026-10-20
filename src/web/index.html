@@ -14,6 +14,18 @@
 </header>
 
 <main>
+  <section class="card license" id="licenseCard" hidden>
+    <h2>Access key</h2>
+    <p class="lede">This Mac needs an access key before it can do any work.
+       Ask whoever set this up for the key, then paste it here.</p>
+    <label class="field">
+      <span>Access key</span>
+      <input id="licenseKey" type="text" placeholder="HM-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+    </label>
+    <button class="primary" id="unlock">Unlock</button>
+    <p class="hint" id="licenseHint"></p>
+  </section>
+
   <section class="card setup" id="setupCard" hidden>
     <h2>Set up this Mac</h2>
     <p class="lede">This Mac has no agent yet, so it cannot take work. Choose the

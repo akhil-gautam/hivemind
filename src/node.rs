@@ -22,6 +22,7 @@ pub struct Settings {
     pub node_name: String,
     pub agent_cmd: Option<String>,
     pub work_dir: String,
+    pub license_key: Option<String>,
 }
 
 pub struct Node {
@@ -50,6 +51,7 @@ impl Node {
                 .clone()
                 .map(|d| expand_home(&d))
                 .unwrap_or_else(home_dir),
+            license_key: cfg.license_key.clone(),
         };
         Arc::new(Node {
             cfg,
@@ -66,6 +68,17 @@ impl Node {
     /// router hands out a new lease, so it is never cached.
     pub fn host(&self) -> String {
         self.identity.lock().unwrap().host.clone()
+    }
+
+    /// Has the right access key been entered for this node?
+    pub fn licensed(&self) -> bool {
+        self.settings
+            .lock()
+            .unwrap()
+            .license_key
+            .as_deref()
+            .map(crate::license::valid)
+            .unwrap_or(false)
     }
 
     pub fn base_url(&self) -> String {
@@ -86,6 +99,11 @@ impl Node {
 
     pub fn info(&self) -> Value {
         let settings = self.settings.lock().unwrap();
+        let licensed = settings
+            .license_key
+            .as_deref()
+            .map(crate::license::valid)
+            .unwrap_or(false);
         json!({
             "id": self.id,
             "name": settings.node_name,
@@ -95,6 +113,7 @@ impl Node {
             "agent": agent_label(settings.agent_cmd.as_deref()),
             "agent_cmd": settings.agent_cmd,
             "work_dir": settings.work_dir,
+            "licensed": licensed,
             "concurrency": self.cfg.concurrency,
             "version": VERSION,
             "uptime_ms": now_ms() - self.started_ms,
@@ -323,6 +342,7 @@ fn route_inner(node: &Arc<Node>, req: &Request) -> Response {
         ("GET", "/v1/info") => Response::json(200, &node.info()),
         ("GET", "/v1/mesh") => mesh(node),
         ("GET", "/v1/agents") => agents(node),
+        ("POST", "/v1/license") => set_license(node, req),
         ("POST", "/v1/settings") => update_settings(node, req),
         ("GET", "/v1/peers") => {
             let peers: Vec<Value> = node.peers().iter().map(|p| p.to_json()).collect();
@@ -423,6 +443,7 @@ fn mesh(node: &Arc<Node>) -> Response {
         "base": node.base_url(),
         "agent": info.get("agent").cloned().unwrap_or(Value::Null),
         "work_dir": info.get("work_dir").cloned().unwrap_or(Value::Null),
+        "licensed": info.get("licensed").cloned().unwrap_or(Value::Null),
         "online": true,
         "busy": info.get("tasks_running").and_then(|v| v.as_u64()).unwrap_or(0) > 0,
         "is_self": true,
@@ -498,7 +519,39 @@ fn update_settings(node: &Arc<Node>, req: &Request) -> Response {
     Response::json(200, &node.info())
 }
 
+/// Check the access key and remember it for this node.
+fn set_license(node: &Arc<Node>, req: &Request) -> Response {
+    let Some(body) = req.json() else {
+        return Response::json(400, &json!({"error": "invalid JSON body"}));
+    };
+    let Some(key) = body.get("key").and_then(|v| v.as_str()) else {
+        return Response::json(400, &json!({"error": "missing field: key"}));
+    };
+    if !crate::license::valid(key) {
+        log("warn", "an invalid access key was entered");
+        return Response::json(403, &json!({"error": "that access key is not valid"}));
+    }
+    let key = crate::license::normalise(key);
+    node.settings.lock().unwrap().license_key = Some(key.clone());
+
+    let mut cfg = config::load();
+    cfg.license_key = Some(key);
+    if let Err(e) = config::save(&cfg, &config::config_path()) {
+        log("warn", &format!("could not save the access key: {}", e));
+    }
+    log("info", "access key accepted");
+    Response::json(200, &node.info())
+}
+
 fn create_task(node: &Arc<Node>, req: &Request) -> Response {
+    if !node.licensed() {
+        return Response::json(
+            403,
+            &json!({
+                "error": "this node needs an access key — enter it on the page, or run `hivemind license <key>`"
+            }),
+        );
+    }
     let Some(body) = req.json() else {
         return Response::json(400, &json!({"error": "invalid JSON body"}));
     };

@@ -30,6 +30,26 @@ the page shows a short setup card that lists the agent programs it found
 (Claude Code, OpenCode, …) and saves your choice — no config files, no
 terminal.
 
+## Access key
+
+A node only works once it has been given the access key:
+
+```
+HM-4KD9-7QXR-2ZTM
+```
+
+The page asks for it the first time you open it, and refuses every task until
+it is entered. You can also set it from a terminal:
+
+```sh
+hivemind license HM-4KD9-7QXR-2ZTM   # save it for this Mac
+hivemind license                     # show the state of the key
+```
+
+The key is a gate, not a secret: it is in this README and in the binary, so
+anyone can read it. It exists so that a Mac on your network is not usable by
+somebody who found the address.
+
 ## Why it is small
 
 | | hivemind |
@@ -64,22 +84,19 @@ $ ps -o rss= -p $(pgrep -f "hivemind serve")
 ### Homebrew
 
 ```sh
-brew tap akhil-gautam/hivemind git@github.com:akhil-gautam/homebrew-hivemind.git
+brew tap akhil-gautam/hivemind
 brew install akhil-gautam/hivemind/hivemind
 ```
 
-Things worth knowing:
+Two things to know:
 
 * **Use the fully qualified name.** `hivemind` is already taken in
   homebrew-core by an unrelated process manager, so plain `brew install
   hivemind` installs that one instead. `brew install akhil-gautam/hivemind/hivemind`
   installs this project.
-* **You need a GitHub SSH key.** The tap and this repository are private, so
-  Homebrew clones both over SSH — the same key that clones the tap is used
-  for the source. Without one, the install stops with *"could not read
-  Username for 'https://github.com'"*. If you use a token instead of a key,
-  run `gh auth setup-git` once before installing.
 * **Rust is required** to build from source: `brew install rust`.
+
+Everything is public, so no token, no SSH key and no credentials are needed.
 
 Upgrades:
 
