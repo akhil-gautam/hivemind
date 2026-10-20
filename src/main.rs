@@ -262,7 +262,7 @@ fn cmd_serve(args: &Args) -> i32 {
         None
     };
 
-    let node = node::Node::new(cfg.clone(), id, host, tasks, discovery, identity);
+    let node = node::Node::new(cfg.clone(), id, tasks, discovery, identity);
     match node::run_node(node) {
         Ok(()) => 0,
         Err(e) => {

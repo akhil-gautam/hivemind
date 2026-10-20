@@ -27,7 +27,6 @@ pub struct Settings {
 pub struct Node {
     pub cfg: Config,
     pub id: String,
-    pub host: String,
     pub tasks: Arc<TaskManager>,
     pub discovery: Option<Arc<Discovery>>,
     pub started_ms: u64,
@@ -39,7 +38,6 @@ impl Node {
     pub fn new(
         cfg: Config,
         id: String,
-        host: String,
         tasks: Arc<TaskManager>,
         discovery: Option<Arc<Discovery>>,
         identity: Arc<Mutex<Identity>>,
@@ -56,7 +54,6 @@ impl Node {
         Arc::new(Node {
             cfg,
             id,
-            host,
             tasks,
             discovery,
             started_ms: now_ms(),
@@ -65,8 +62,14 @@ impl Node {
         })
     }
 
+    /// The address this Mac currently answers on. It can change when the
+    /// router hands out a new lease, so it is never cached.
+    pub fn host(&self) -> String {
+        self.identity.lock().unwrap().host.clone()
+    }
+
     pub fn base_url(&self) -> String {
-        format!("http://{}:{}", self.host, self.cfg.port)
+        format!("http://{}:{}", self.host(), self.cfg.port)
     }
 
     pub fn self_peer(&self) -> Peer {
@@ -74,7 +77,7 @@ impl Node {
         Peer {
             id: self.id.clone(),
             name: settings.node_name.clone(),
-            host: self.host.clone(),
+            host: self.host(),
             port: self.cfg.port,
             agent: agent_label(settings.agent_cmd.as_deref()),
             last_seen_ms: now_ms(),
@@ -86,7 +89,7 @@ impl Node {
         json!({
             "id": self.id,
             "name": settings.node_name,
-            "host": self.host,
+            "host": self.host(),
             "port": self.cfg.port,
             "base": self.base_url(),
             "agent": agent_label(settings.agent_cmd.as_deref()),
@@ -121,6 +124,32 @@ fn agent_label(cmd: Option<&str>) -> String {
 }
 
 pub fn run_node(node: Arc<Node>) -> std::io::Result<()> {
+    // Keep the advertised address current: a home router can hand out a new
+    // lease at any time, and peers must be able to reach this Mac afterwards.
+    {
+        let n = node.clone();
+        std::thread::Builder::new()
+            .name("hive-address".into())
+            .stack_size(128 * 1024)
+            .spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(20));
+                let ifaces = crate::net::interfaces();
+                let Some(ip) = crate::net::primary_ipv4(&ifaces) else {
+                    continue;
+                };
+                let mut identity = n.identity.lock().unwrap();
+                if identity.host != ip.to_string() {
+                    let old = identity.host.clone();
+                    identity.host = ip.to_string();
+                    drop(identity);
+                    log(
+                        "info",
+                        &format!("address changed: {} -> {}", old, ip),
+                    );
+                }
+            })?;
+    }
+
     // Worker pool.
     for i in 0..node.cfg.concurrency {
         let n = node.clone();
@@ -162,7 +191,7 @@ pub fn run_node(node: Arc<Node>) -> std::io::Result<()> {
         "info",
         &format!(
             "node '{}' listening on {} (advertise {}:{})",
-            node.cfg.node_name, local, node.host, node.cfg.port
+            node.cfg.node_name, local, node.host(), node.cfg.port
         ),
     );
     log(
