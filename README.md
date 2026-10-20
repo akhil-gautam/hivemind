@@ -76,6 +76,7 @@ Rust 1.75+ is the only build requirement.
 hive open     # start the node if needed, then show the page in your browser
 hive app      # create a double-clickable Hive.app in ~/Applications
 hive install  # start the node automatically at login (launchd)
+hive probe    # check which nodes answer on this network
 ```
 
 `hive open` and the app both work whether or not a node is running: they start
@@ -202,6 +203,10 @@ file location. Changes made in the page are written back to this file.
   `--host` with a routable address.
 * **Sleeping Macs**: a sleeping node stops answering. The page marks it
   offline; tasks sent to it fail fast instead of hanging.
+* **Nothing shows up?** Run `hive probe` on the Mac that cannot see the others.
+  It prints the nodes it hears and exits non-zero if it hears none — that
+  separates "the network blocks beacons" from "the other node is down".
+  `hive run --host IP:PORT` works regardless of discovery.
 
 ## Development
 

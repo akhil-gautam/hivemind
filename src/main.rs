@@ -40,6 +40,7 @@ const VALUE_FLAGS: &[&str] = &[
     "discovery-port",
     "group",
     "cwd",
+    "seconds",
 ];
 
 struct Args {
@@ -108,6 +109,7 @@ fn main() {
         "uninstall" => cmd_uninstall(&args),
         "open" => cmd_open(&args),
         "app" => cmd_app(&args),
+        "probe" => cmd_probe(&args),
         "version" => {
             println!("hive {}", node::VERSION);
             0
@@ -138,6 +140,7 @@ USAGE
   hive config show|path|init|set KEY VALUE   manage the node configuration
   hive open                                   start the node if needed and open the page
   hive app                                    create a double-clickable Hive.app
+  hive probe [--seconds N]                    check which nodes answer on this network
   hive install [--dry-run]                   install the launchd service
   hive uninstall                              remove the launchd service
   hive version
@@ -759,6 +762,28 @@ fn cmd_open(args: &Args) -> i32 {
         return 1;
     }
     println!("{}", url);
+    0
+}
+
+/// Listen for beacons and report which nodes answer. Used to check whether
+/// this machine can hear the mesh at all.
+fn cmd_probe(args: &Args) -> i32 {
+    let cfg = config::load_from(&config_path_for(args));
+    let seconds = args.num("seconds").unwrap_or(3).clamp(1, 30);
+    let ifaces = net::interfaces();
+    let found = net::scan(
+        &cfg.discovery_group,
+        cfg.discovery_port,
+        &ifaces,
+        Duration::from_secs(seconds),
+    );
+    if found.is_empty() {
+        println!("no nodes heard on {}:{}", cfg.discovery_group, cfg.discovery_port);
+        return 1;
+    }
+    for peer in &found {
+        println!("{} {} {}", peer.name, peer.addr(), peer.agent);
+    }
     0
 }
 

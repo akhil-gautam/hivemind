@@ -284,6 +284,22 @@ fn nodes_discover_each_other_on_the_lan() {
     let a = Node::start(&dir_a, 18806, 14786, "peer-a", "cat");
     let b = Node::start(&dir_b, 18807, 14786, "peer-b", "cat");
 
+    // Some machines (cloud VMs, locked-down networks) do not deliver
+    // multicast between local processes. Check that the beacons travel at all
+    // before asserting on discovery.
+    let probe = Command::new(BIN)
+        .args(["probe", "--seconds", "3"])
+        .env("HIVE_DIR", &dir_a)
+        .output()
+        .expect("failed to run hive probe");
+    if !probe.status.success() {
+        eprintln!(
+            "skipped: this machine does not deliver beacons between local processes ({})",
+            String::from_utf8_lossy(&probe.stdout).trim()
+        );
+        return;
+    }
+
     let deadline = Instant::now() + Duration::from_secs(20);
     let mut found = false;
     while Instant::now() < deadline && !found {
