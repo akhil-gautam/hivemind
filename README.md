@@ -61,6 +61,28 @@ $ ps -o rss= -p $(pgrep -f "hivemind serve")
 
 ## Install
 
+### Homebrew
+
+```sh
+brew tap akhil-gautam/hivemind git@github.com:akhil-gautam/homebrew-hivemind.git
+brew install akhil-gautam/hivemind/hivemind
+```
+
+Two things to know:
+
+* **Use the fully qualified name.** `hivemind` is already taken in
+  homebrew-core by an unrelated process manager, so `brew install hivemind`
+  would install that one instead. `brew install akhil-gautam/hivemind/hivemind`
+  installs this project.
+* **The tap is private.** The SSH URL in the `brew tap` line above is what
+  makes it work without a token; if you would rather use HTTPS, set
+  `export HOMEBREW_GITHUB_API_TOKEN=$(gh auth token)` first (a token with
+  `repo` scope).
+
+`brew upgrade akhil-gautam/hivemind/hivemind` picks up new releases.
+
+### From source
+
 ```sh
 git clone <this repo> ~/projects/hivemind
 cd ~/projects/hivemind
