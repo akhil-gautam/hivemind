@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hive — your Macs, one command</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span> Hive</div>
+  <div class="sub" id="selfLine">Connecting…</div>
+</header>
+
+<main>
+  <section class="card setup" id="setupCard" hidden>
+    <h2>Set up this Mac</h2>
+    <p class="lede">This Mac has no agent yet, so it cannot take work. Choose the
+       agent you use here — you can change it later.</p>
+    <div class="choices" id="agentChoices"></div>
+    <label class="field">
+      <span>Or type the command yourself</span>
+      <input id="customCmd" type="text" placeholder="claude -p {prompt}" autocomplete="off">
+    </label>
+    <button class="ghost" id="useCustom">Use this command</button>
+    <label class="field">
+      <span>Working folder</span>
+      <input id="workDir" type="text" placeholder="~/projects/my-app" autocomplete="off">
+    </label>
+    <button class="ghost" id="saveSetup">Save and continue</button>
+  </section>
+
+  <section class="card">
+    <h2>Your Macs</h2>
+    <p class="lede" id="meshHint">Looking for Macs on this WiFi…</p>
+    <div class="mesh" id="mesh"></div>
+  </section>
+
+  <section class="card">
+    <h2>What should it do?</h2>
+    <textarea id="prompt" rows="3"
+      placeholder="e.g. fix the failing tests in my project"></textarea>
+    <label class="field">
+      <span>Working folder <em>optional</em></span>
+      <input id="taskDir" type="text" placeholder="leave empty to use the Mac's folder" autocomplete="off">
+    </label>
+    <button class="primary" id="run">Run on <span id="targetName">this Mac</span></button>
+    <p class="hint" id="runHint"></p>
+  </section>
+
+  <section class="card run" id="runCard" hidden>
+    <div class="runHead">
+      <h2>Working on it</h2>
+      <span class="state" id="runState">starting</span>
+    </div>
+    <pre class="output" id="output"></pre>
+    <button class="ghost" id="cancel">Stop this work</button>
+  </section>
+
+  <section class="card">
+    <h2>Recent work</h2>
+    <ul class="recent" id="recent"></ul>
+    <p class="hint" id="recentHint"></p>
+  </section>
+</main>
+
+<footer>
+  <span>Everything stays on your home WiFi.</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

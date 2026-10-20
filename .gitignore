@@ -1,0 +1,11 @@
+# Build output
+target/
+
+# Local state written by a running node
+config.json
+tasks.jsonl
+peers.json
+*.log
+
+# macOS
+.DS_Store
