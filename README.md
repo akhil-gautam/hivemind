@@ -68,18 +68,25 @@ brew tap akhil-gautam/hivemind git@github.com:akhil-gautam/homebrew-hivemind.git
 brew install akhil-gautam/hivemind/hivemind
 ```
 
-Two things to know:
+Things worth knowing:
 
 * **Use the fully qualified name.** `hivemind` is already taken in
-  homebrew-core by an unrelated process manager, so `brew install hivemind`
-  would install that one instead. `brew install akhil-gautam/hivemind/hivemind`
+  homebrew-core by an unrelated process manager, so plain `brew install
+  hivemind` installs that one instead. `brew install akhil-gautam/hivemind/hivemind`
   installs this project.
-* **The tap is private.** The SSH URL in the `brew tap` line above is what
-  makes it work without a token; if you would rather use HTTPS, set
-  `export HOMEBREW_GITHUB_API_TOKEN=$(gh auth token)` first (a token with
-  `repo` scope).
+* **The tap and this repository are private.** The SSH URL in the `brew tap`
+  line lets Homebrew clone the tap with your GitHub SSH key; the formula then
+  fetches the source over HTTPS, authenticated with the token from the GitHub
+  CLI (`gh auth setup-git` once). If you prefer HTTPS, export
+  `HOMEBREW_GITHUB_API_TOKEN=$(gh auth token)` and tap without the URL.
+* **Rust is required** to build from source: `brew install rust`.
 
-`brew upgrade akhil-gautam/hivemind/hivemind` picks up new releases.
+Upgrades:
+
+```sh
+brew update
+brew upgrade akhil-gautam/hivemind/hivemind
+```
 
 ### From source
 

@@ -1,8 +1,8 @@
 class Hivemind < Formula
   desc "Run CLI agents on several Macs over the home WiFi"
   homepage "https://github.com/akhil-gautam/hivemind"
-  url "https://github.com/akhil-gautam/hivemind.git", tag: "v0.2.0"
-  version "0.2.0"
+  url "https://github.com/akhil-gautam/hivemind.git", tag: "v0.3.0"
+  version "0.3.0"
   license "MIT"
 
   def install
