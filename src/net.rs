@@ -54,18 +54,25 @@ pub fn interfaces() -> Vec<Iface> {
                 let nm = ifa.ifa_netmask as *const libc::sockaddr_in;
                 Some(Ipv4Addr::from(u32::from_be((*nm).sin_addr.s_addr)))
             };
-            let broadcast = if ifa.ifa_dstaddr.is_null() {
-                // Derive it from the netmask when the interface does not
-                // report a destination address.
+            // BSD reports the broadcast address in ifa_dstaddr; Linux has no
+            // such field, so fall back to deriving it from the netmask.
+            #[cfg(target_os = "macos")]
+            let reported_broadcast = if ifa.ifa_dstaddr.is_null() {
+                None
+            } else {
+                let bc = ifa.ifa_dstaddr as *const libc::sockaddr_in;
+                Some(Ipv4Addr::from(u32::from_be((*bc).sin_addr.s_addr)))
+            };
+            #[cfg(not(target_os = "macos"))]
+            let reported_broadcast: Option<Ipv4Addr> = None;
+
+            let broadcast = reported_broadcast.or_else(|| {
                 netmask.map(|mask| {
                     let ip_bits = u32::from(ip);
                     let mask_bits = u32::from(mask);
                     Ipv4Addr::from(ip_bits | !mask_bits)
                 })
-            } else {
-                let bc = ifa.ifa_dstaddr as *const libc::sockaddr_in;
-                Some(Ipv4Addr::from(u32::from_be((*bc).sin_addr.s_addr)))
-            };
+            });
             let flags = ifa.ifa_flags as i32;
             let name = std::ffi::CStr::from_ptr(ifa.ifa_name)
                 .to_string_lossy()
