@@ -18,61 +18,68 @@ pub const PEER_TTL: Duration = Duration::from_secs(20);
 pub struct Iface {
     pub name: String,
     pub ipv4: Option<Ipv4Addr>,
-    pub netmask: Option<Ipv4Addr>,
     pub broadcast: Option<Ipv4Addr>,
     pub multicast: bool,
     pub up: bool,
+    pub loopback: bool,
 }
 
-/// Parse `ifconfig -a` output. Avoids pulling in a libc struct layout.
+/// Enumerate the machine's network interfaces.
+///
+/// Uses getifaddrs rather than shelling out to `ifconfig`: launchd services
+/// do not get a PATH that includes /sbin, and a node that cannot see its
+/// interfaces cannot join the multicast group.
 pub fn interfaces() -> Vec<Iface> {
-    let out = match std::process::Command::new("ifconfig").arg("-a").output() {
-        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
-        Err(_) => return Vec::new(),
-    };
     let mut list: Vec<Iface> = Vec::new();
-    for line in out.lines() {
-        if line.contains("flags=") {
-            let head = line.split(':').next().unwrap_or("").trim().to_string();
-            if !head.is_empty() && head.chars().all(|c| c.is_ascii_alphanumeric()) {
-                let flags = line
-                    .split_once('<')
-                    .and_then(|(_, rest)| rest.split_once('>'))
-                    .map(|(f, _)| f.to_string())
-                    .unwrap_or_default();
-                list.push(Iface {
-                    name: head,
-                    ipv4: None,
-                    netmask: None,
-                    broadcast: None,
-                    multicast: flags.contains("MULTICAST"),
-                    up: flags.contains("UP"),
-                });
-            }
-            continue;
+    unsafe {
+        let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
+        if libc::getifaddrs(&mut head) != 0 {
+            return list;
         }
-        let t = line.trim();
-        let Some(rest) = t.strip_prefix("inet ") else {
-            continue;
-        };
-        let mut parts = rest.split_whitespace();
-        let addr = parts.next().unwrap_or("").to_string();
-        let mut netmask = None;
-        let mut broadcast = None;
-        while let Some(kv) = parts.next() {
-            if let Some(v) = kv.strip_prefix("netmask=") {
-                netmask = Some(v.to_string());
-            } else if let Some(v) = kv.strip_prefix("broadcast=") {
-                broadcast = Some(v.to_string());
+        let mut cur = head;
+        while !cur.is_null() {
+            let ifa = &*cur;
+            cur = ifa.ifa_next;
+            if ifa.ifa_addr.is_null() {
+                continue;
             }
-        }
-        if let Some(iface) = list.last_mut() {
-            if iface.ipv4.is_none() {
-                iface.ipv4 = addr.parse().ok();
-                iface.netmask = netmask.and_then(|s| s.parse().ok());
-                iface.broadcast = broadcast.and_then(|s| s.parse().ok());
+            if (*ifa.ifa_addr).sa_family as i32 != libc::AF_INET {
+                continue;
             }
+            let sin = ifa.ifa_addr as *const libc::sockaddr_in;
+            let ip = Ipv4Addr::from(u32::from_be((*sin).sin_addr.s_addr));
+            let netmask = if ifa.ifa_netmask.is_null() {
+                None
+            } else {
+                let nm = ifa.ifa_netmask as *const libc::sockaddr_in;
+                Some(Ipv4Addr::from(u32::from_be((*nm).sin_addr.s_addr)))
+            };
+            let broadcast = if ifa.ifa_dstaddr.is_null() {
+                // Derive it from the netmask when the interface does not
+                // report a destination address.
+                netmask.map(|mask| {
+                    let ip_bits = u32::from(ip);
+                    let mask_bits = u32::from(mask);
+                    Ipv4Addr::from(ip_bits | !mask_bits)
+                })
+            } else {
+                let bc = ifa.ifa_dstaddr as *const libc::sockaddr_in;
+                Some(Ipv4Addr::from(u32::from_be((*bc).sin_addr.s_addr)))
+            };
+            let flags = ifa.ifa_flags as i32;
+            let name = std::ffi::CStr::from_ptr(ifa.ifa_name)
+                .to_string_lossy()
+                .to_string();
+            list.push(Iface {
+                name,
+                ipv4: Some(ip),
+                broadcast,
+                multicast: flags & libc::IFF_MULTICAST != 0,
+                up: flags & libc::IFF_UP != 0,
+                loopback: flags & libc::IFF_LOOPBACK != 0,
+            });
         }
+        libc::freeifaddrs(head);
     }
     list
 }
@@ -83,7 +90,7 @@ pub fn primary_ipv4(ifaces: &[Iface]) -> Option<Ipv4Addr> {
     let mut fallback = None;
     for iface in ifaces {
         let Some(ip) = iface.ipv4 else { continue };
-        if ip.is_loopback() {
+        if ip.is_loopback() || iface.loopback {
             continue;
         }
         if fallback.is_none() {
@@ -167,6 +174,18 @@ impl Discovery {
         if let Some(primary) = primary_ipv4(&ifaces) {
             let _ = socket.set_multicast_if_v4(&primary);
         }
+        log(
+            "info",
+            &format!(
+                "discovery: {}:{} via {} ({} interface(s))",
+                group,
+                discovery_port,
+                primary_ipv4(&ifaces)
+                    .map(|ip| ip.to_string())
+                    .unwrap_or_else(|| "default route".into()),
+                ifaces.len()
+            ),
+        );
         socket.set_read_timeout(Some(Duration::from_millis(500)))?;
         let udp: UdpSocket = socket.try_clone()?.into();
 

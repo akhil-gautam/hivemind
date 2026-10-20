@@ -17,6 +17,7 @@ mod web;
 
 use config::Config;
 use std::io::Write;
+use util::log;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -223,6 +224,14 @@ fn cmd_serve(args: &Args) -> i32 {
         .unwrap_or_else(|| "127.0.0.1".to_string());
 
     let id = format!("{}-{}", cfg.node_name, std::process::id());
+    log(
+        "info",
+        &format!(
+            "network: {} interface(s), this Mac answers at {}",
+            ifaces.len(),
+            host
+        ),
+    );
     let tasks = task::TaskManager::new(config::tasks_path(), cfg.history);
     let identity = std::sync::Arc::new(std::sync::Mutex::new(net::Identity {
         id: id.clone(),
