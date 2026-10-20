@@ -1,8 +1,11 @@
 class Hivemind < Formula
   desc "Run CLI agents on several Macs over the home WiFi"
   homepage "https://github.com/akhil-gautam/hivemind"
-  url "https://github.com/akhil-gautam/hivemind.git", tag: "v0.3.1"
-  version "0.3.1"
+  # The repository is private, so the source is cloned over SSH. That needs
+  # an SSH key with access to the repository (the same key that clones the
+  # tap), and no GitHub token or credential helper.
+  url "ssh://git@github.com/akhil-gautam/hivemind.git", tag: "v0.3.2"
+  version "0.3.2"
   license "MIT"
 
   def install

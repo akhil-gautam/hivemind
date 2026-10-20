@@ -74,11 +74,11 @@ Things worth knowing:
   homebrew-core by an unrelated process manager, so plain `brew install
   hivemind` installs that one instead. `brew install akhil-gautam/hivemind/hivemind`
   installs this project.
-* **The tap and this repository are private.** The SSH URL in the `brew tap`
-  line lets Homebrew clone the tap with your GitHub SSH key; the formula then
-  fetches the source over HTTPS, authenticated with the token from the GitHub
-  CLI (`gh auth setup-git` once). If you prefer HTTPS, export
-  `HOMEBREW_GITHUB_API_TOKEN=$(gh auth token)` and tap without the URL.
+* **You need a GitHub SSH key.** The tap and this repository are private, so
+  Homebrew clones both over SSH — the same key that clones the tap is used
+  for the source. Without one, the install stops with *"could not read
+  Username for 'https://github.com'"*. If you use a token instead of a key,
+  run `gh auth setup-git` once before installing.
 * **Rust is required** to build from source: `brew install rust`.
 
 Upgrades:

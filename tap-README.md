@@ -14,12 +14,11 @@ Things worth knowing:
 * **Use the fully qualified name.** homebrew-core already ships an unrelated
   `hivemind` (a Procfile process manager), so plain `brew install hivemind`
   installs that one instead.
-* **Everything is private.** The SSH URL in the `brew tap` line lets Homebrew
-  clone this tap with your GitHub SSH key. The formula then fetches the
-  source over HTTPS, which Homebrew authenticates with the token from the
-  GitHub CLI — run `gh auth setup-git` once if you have not already. If you
-  would rather use HTTPS, export `HOMEBREW_GITHUB_API_TOKEN=$(gh auth token)`
-  and tap without the URL.
+* **Everything is private**, so Homebrew clones the tap *and* the source over
+  SSH. You need a GitHub SSH key with access to this repository — the same
+  key that clones the tap is used for the source. Without one the install
+  stops with `could not read Username for 'https://github.com'`. If you
+  prefer a token to a key, run `gh auth setup-git` once before installing.
 * **Rust is required** to build from source: `brew install rust`.
 
 Upgrades:
